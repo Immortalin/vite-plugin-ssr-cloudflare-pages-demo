@@ -9,7 +9,6 @@ export default {
   },
 };
 
-
 async function handleFetchEvent(
   request: Request,
   env: unknown
@@ -18,14 +17,23 @@ async function handleFetchEvent(
     const response = await handleSsr(request.url);
     if (response !== null) return response;
   }
+
+  return env.ASSETS.fetch(request);
   // Optional security headers, comment out if not needed.
-  const response: Response = await env.ASSETS.fetch(request);
-  response.headers.set("X-XSS-Protection", "1; mode=block");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("Referrer-Policy", "unsafe-url");
-  response.headers.set("Feature-Policy", "none");
-  return response;
+  // Modifying original response directly errors out in production: https://github.com/cloudflare/miniflare/issues/243
+  // Workaround: Create a new Response object with the headers you want to add and the original's body.
+  // const upstreamResponse: Response = await env.ASSETS.fetch(request);
+  // const response: Response = new Response(upstreamResponse.body, {
+  //   status: upstreamResponse.status,
+  //   statusText: upstreamResponse.statusText,
+  //   headers: upstreamResponse.headers,
+  // });
+  // response.headers.set("X-XSS-Protection", "1; mode=block");
+  // response.headers.set("X-Content-Type-Options", "nosniff");
+  // response.headers.set("X-Frame-Options", "DENY");
+  // response.headers.set("Referrer-Policy", "unsafe-url");
+  // response.headers.set("Feature-Policy", "none");
+  // return response;
 }
 function isAssetUrl(url: string) {
   const { pathname } = new URL(url);
@@ -35,7 +43,6 @@ function isAssetUrl(url: string) {
 import { createPageRenderer } from "vite-plugin-ssr";
 // `importBuild.js` enables us to bundle our worker code into a single file, see https://vite-plugin-ssr.com/cloudflare-workers and https://vite-plugin-ssr.com/importBuild.js
 import "../dist/server/importBuild.js";
-
 
 const renderPage = createPageRenderer({ isProduction: true });
 
